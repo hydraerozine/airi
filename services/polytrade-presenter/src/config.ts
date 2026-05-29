@@ -1,0 +1,114 @@
+import process from 'node:process'
+
+/**
+ * Runtime configuration for the Polytrade -> AIRI presenter bridge.
+ *
+ * Every field is resolved from environment variables in {@link loadConfig};
+ * see that function for the variable names and defaults. Field-level meaning
+ * is documented on each property below.
+ */
+export interface PresenterConfig {
+  /**
+   * AIRI server WebSocket endpoint the bridge connects to as a module.
+   * @default 'ws://localhost:6121/ws'
+   */
+  airiServerUrl: string
+  /**
+   * Auth token, only required when the AIRI server enforces authentication.
+   * Left undefined for unauthenticated (local/dev) servers.
+   */
+  airiServerToken?: string
+  /** Absolute URL of Polytrade's `/snapshot` JSON feed. Required. */
+  snapshotUrl: string
+  /**
+   * How often to poll the snapshot feed, in milliseconds. Matches `live.html`'s
+   * `CONFIG.pollMs` so detection cadence is identical to the built-in presenter.
+   * @default 3000
+   */
+  pollMs: number
+  /**
+   * How often to emit an unprompted book summary, in milliseconds. Matches
+   * `live.html`'s `CONFIG.summaryMs`.
+   * @default 48000
+   */
+  summaryMs: number
+  /**
+   * Skip the periodic summary if the bridge spoke within this many milliseconds.
+   * Stands in for `live.html`'s "only summarize when idle" gate, which the bridge
+   * cannot observe directly (the brain's speaking state lives in stage-web).
+   * @default 20000
+   */
+  summaryQuietMs: number
+  /**
+   * Stable session id so AIRI keeps one coherent conversation/memory lane for the
+   * feed instead of treating every event as a new chat.
+   * @default 'polytrade-live'
+   */
+  sessionId: string
+  /**
+   * Optional prefix prepended to the message the brain receives (for source
+   * attribution). Empty by default to keep spoken delivery clean — prefer baking
+   * framing into the stage-web persona instead.
+   */
+  messagePrefix?: string
+  /**
+   * Display name used in the greeting line.
+   * @default 'Aria'
+   */
+  presenterName: string
+  /**
+   * Emit a greeting once the bridge connects and primes against the first snapshot.
+   * @default true
+   */
+  greetOnConnect: boolean
+}
+
+/** Parse an integer env var, falling back when unset/blank/non-numeric. */
+function intEnv(name: string, fallback: number): number {
+  const raw = process.env[name]
+  if (raw == null || raw.trim() === '')
+    return fallback
+  const parsed = Number.parseInt(raw, 10)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+/** Parse a boolean env var; treats 1/true/yes/on (case-insensitive) as true. */
+function boolEnv(name: string, fallback: boolean): boolean {
+  const raw = process.env[name]
+  if (raw == null)
+    return fallback
+  return /^(?:1|true|yes|on)$/i.test(raw.trim())
+}
+
+/**
+ * Build a {@link PresenterConfig} from `process.env`.
+ *
+ * Use when:
+ * - Booting the bridge entrypoint ({@link import('./main')}).
+ *
+ * Expects:
+ * - `POLYTRADE_SNAPSHOT_URL` to be set; all other variables have defaults.
+ *
+ * Returns:
+ * - A fully-resolved config.
+ *
+ * @throws Error when `POLYTRADE_SNAPSHOT_URL` is missing or blank.
+ */
+export function loadConfig(): PresenterConfig {
+  const snapshotUrl = (process.env.POLYTRADE_SNAPSHOT_URL ?? '').trim()
+  if (!snapshotUrl)
+    throw new Error('POLYTRADE_SNAPSHOT_URL is required (e.g. https://your-polytrade.up.railway.app/snapshot)')
+
+  return {
+    airiServerUrl: (process.env.AIRI_SERVER_URL ?? 'ws://localhost:6121/ws').trim(),
+    airiServerToken: process.env.AIRI_SERVER_TOKEN?.trim() || undefined,
+    snapshotUrl,
+    pollMs: intEnv('POLL_INTERVAL_MS', 3000),
+    summaryMs: intEnv('SUMMARY_INTERVAL_MS', 48000),
+    summaryQuietMs: intEnv('SUMMARY_QUIET_MS', 20000),
+    sessionId: (process.env.SESSION_ID ?? 'polytrade-live').trim(),
+    messagePrefix: process.env.MESSAGE_PREFIX?.trim() || undefined,
+    presenterName: (process.env.PRESENTER_NAME ?? 'Aria').trim(),
+    greetOnConnect: boolEnv('GREET_ON_CONNECT', true),
+  }
+}

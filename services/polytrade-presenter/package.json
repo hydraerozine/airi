@@ -1,0 +1,29 @@
+{
+  "name": "@proj-airi/polytrade-presenter",
+  "type": "module",
+  "private": true,
+  "description": "Bridges Polytrade's live trade feed into AIRI so the avatar reacts to and narrates fires, closes, and book summaries.",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "services/polytrade-presenter"
+  },
+  "scripts": {
+    "start": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local src/main.ts",
+    "dev": "tsx watch --env-file-if-exists=.env --env-file-if-exists=.env.local src/main.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@guiiai/logg": "catalog:",
+    "@proj-airi/server-sdk": "workspace:^"
+  },
+  "devDependencies": {
+    "tsx": "catalog:"
+  }
+}
