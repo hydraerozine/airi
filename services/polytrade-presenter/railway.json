@@ -1,0 +1,12 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "services/polytrade-presenter/Dockerfile"
+  },
+  "deploy": {
+    "startCommand": "pnpm -F @proj-airi/polytrade-presenter start",
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
+  }
+}

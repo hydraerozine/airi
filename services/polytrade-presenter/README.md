@@ -111,6 +111,41 @@ Polytrade exposes a `/presenter` view that embeds the AIRI stage. Set
 dashboard's **🎙️ Presenter** button. The built-in **📺 Live** view remains as a
 zero-infra fallback.
 
+## Deploy on Railway
+
+This service ships a `Dockerfile` and `railway.json` so it can run as a **worker**
+(no exposed port) alongside Polytrade and the AIRI server in one Railway project.
+
+Create a service from the airi repo and set:
+
+- **Root Directory**: the repo root, so the pnpm workspace is the Docker build
+  context (the Dockerfile does `COPY . .` and builds the `server-sdk` dependency
+  chain).
+- **Config-as-code path**: `services/polytrade-presenter/railway.json` — points
+  the build at `services/polytrade-presenter/Dockerfile` and sets a
+  restart-on-failure policy.
+- **Variables**:
+
+  | Variable | Example |
+  | --- | --- |
+  | `POLYTRADE_SNAPSHOT_URL` | `https://<polytrade>.up.railway.app/snapshot` |
+  | `AIRI_SERVER_URL` | `wss://<airi-server>.up.railway.app/ws` |
+  | `AIRI_SERVER_TOKEN` | (only if the server enforces auth) |
+
+Companion services in the same project:
+
+- **airi-server** — Dockerfile `apps/server/Dockerfile` (port 3000); needs a
+  pgvector-capable Postgres + Redis, plus `BETTER_AUTH_SECRET`,
+  `LLM_ROUTER_MASTER_KEY`, `API_SERVER_URL`, `CLIENT_URL`.
+- **airi-stage** (stage-web) — Dockerfile `apps/stage-web/Dockerfile` (nginx,
+  port 80); set the build arg `VITE_AIRI_WS_URL=wss://<airi-server>/ws` so the
+  avatar UI points at the server. Its public URL is what you set as
+  `AIRI_STAGE_URL` on Polytrade.
+
+The avatar's LLM brain + TTS run in whatever browser loads stage-web, so keep one
+configured stage-web instance open (e.g. an OBS browser source) for an always-on
+presenter.
+
 ## Notes
 
 - Ambient book state (equity, win rate) is **not** yet pushed as a separate
