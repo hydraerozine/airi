@@ -10,14 +10,16 @@ import type { Position, Snapshot } from './snapshot'
  * AIRI as `input:text`, after which the stage-web persona delivers it.
  */
 
-/** Crypto symbol -> readable name, e.g. `WBTC` -> `bitcoin`. */
+/** Crypto symbol -> readable name, e.g. `BTC` -> `bitcoin`. */
 const SYM_NAME: Record<string, string> = {
-  WBTC: 'bitcoin',
-  WETH: 'ethereum',
+  BTC: 'bitcoin',
+  ETH: 'ethereum',
   SOL: 'solana',
-  JUP: 'jupiter',
-  WIF: 'wiff',
-  BONK: 'bonk',
+  TRX: 'tron',
+  HYPE: 'hyperliquid',
+  DOGE: 'dogecoin',
+  ADA: 'cardano',
+  TON: 'toncoin',
 }
 
 /** Horizon code -> spoken words, e.g. `20m` -> `twenty minute`. */
