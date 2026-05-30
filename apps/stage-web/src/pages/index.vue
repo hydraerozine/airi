@@ -32,6 +32,11 @@ function handleSettingsOpen(open: boolean) {
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const isMobile = breakpoints.smaller('md')
 
+// Stage-only / widget mode: render just the avatar, hiding the chat panel,
+// header, and on-screen controls. Enabled via `?stage=1` — used when embedding
+// the avatar in an external page (e.g. the Polytrade presenter HUD).
+const stageOnly = new URLSearchParams(window.location.search).get('stage') === '1'
+
 const backgroundStore = useBackgroundStore()
 const { selectedOption, sampledColor } = storeToRefs(backgroundStore)
 const backgroundSurface = useTemplateRef<InstanceType<typeof BackgroundProvider>>('backgroundSurface')
@@ -164,7 +169,7 @@ const cursorPosition = computed(() => ({
   >
     <div relative flex="~ col" z-2 h-100dvh w-100vw of-hidden>
       <!-- header -->
-      <div class="px-0 py-1 md:px-3 md:py-3" w-full gap-2>
+      <div v-if="!stageOnly" class="px-0 py-1 md:px-3 md:py-3" w-full gap-2>
         <Header class="hidden md:flex" />
         <MobileHeader class="flex md:hidden" />
       </div>
@@ -172,6 +177,7 @@ const cursorPosition = computed(() => ({
       <div relative flex="~ 1 row gap-y-0 gap-x-2 <md:col">
         <div relative flex-1 min-w="1/2">
           <div
+            v-if="!stageOnly"
             absolute left-0 z-15 px-3
             :class="[
               stageModelRenderer === 'live2d' ? 'top-0 h-full py-[20vh]' : 'top-1/2 -translate-y-1/2',
@@ -186,10 +192,10 @@ const cursorPosition = computed(() => ({
             :paused="paused"
           />
         </div>
-        <InteractiveArea v-if="!isMobile" h="85dvh" absolute right-4 flex flex-1 flex-col max-w="500px" min-w="30%" />
-        <MobileInteractiveArea v-if="isMobile" @settings-open="handleSettingsOpen" />
+        <InteractiveArea v-if="!isMobile && !stageOnly" h="85dvh" absolute right-4 flex flex-1 flex-col max-w="500px" min-w="30%" />
+        <MobileInteractiveArea v-if="isMobile && !stageOnly" @settings-open="handleSettingsOpen" />
       </div>
-      <HoloCoupon />
+      <HoloCoupon v-if="!stageOnly" />
     </div>
   </BackgroundProvider>
 </template>
