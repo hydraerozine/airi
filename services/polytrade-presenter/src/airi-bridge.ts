@@ -4,7 +4,7 @@ import type { Snapshot } from './snapshot'
 import { useLogg } from '@guiiai/logg'
 import { Client } from '@proj-airi/server-sdk'
 
-import { closeLine, fireLine, greetingLine, summaryLine } from './narration'
+import { closeLine, fireLine, greetingLine, marketReadLine, summaryLine } from './narration'
 import { createChangeDetector, fetchSnapshot } from './snapshot'
 
 /**
@@ -29,6 +29,7 @@ export class AiriPresenterBridge {
   private lastSnapshot?: Snapshot
   private pollTimer?: ReturnType<typeof setTimeout>
   private summaryTimer?: ReturnType<typeof setInterval>
+  private opinionTimer?: ReturnType<typeof setInterval>
 
   constructor(config: PresenterConfig) {
     this.config = config
@@ -73,6 +74,15 @@ export class AiriPresenterBridge {
         return
       this.speak(summaryLine(this.lastSnapshot))
     }, this.config.summaryMs)
+
+    // Occasionally hand STAR a factual market read and let her opine on it.
+    this.opinionTimer = setInterval(() => {
+      if (!this.running || !this.lastSnapshot)
+        return
+      if (Date.now() - this.lastSpokeAt < this.config.opinionQuietMs)
+        return
+      this.speak(marketReadLine(this.lastSnapshot))
+    }, this.config.opinionMs)
   }
 
   /** Stop timers and close the AIRI connection. */
@@ -82,6 +92,8 @@ export class AiriPresenterBridge {
       clearTimeout(this.pollTimer)
     if (this.summaryTimer)
       clearInterval(this.summaryTimer)
+    if (this.opinionTimer)
+      clearInterval(this.opinionTimer)
     this.client.close()
   }
 

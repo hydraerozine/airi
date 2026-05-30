@@ -40,6 +40,18 @@ export interface PresenterConfig {
    */
   summaryQuietMs: number
   /**
+   * How often STAR offers an unprompted opinion on the live data, in
+   * milliseconds. The bridge sends a short factual market read and lets the
+   * persona react, so she "sometimes comments on what she's seeing".
+   * @default 150000
+   */
+  opinionMs: number
+  /**
+   * Skip the periodic opinion if the bridge spoke within this many milliseconds.
+   * @default 25000
+   */
+  opinionQuietMs: number
+  /**
    * Stable session id so AIRI keeps one coherent conversation/memory lane for the
    * feed instead of treating every event as a new chat.
    * @default 'polytrade-live'
@@ -106,6 +118,8 @@ export function loadConfig(): PresenterConfig {
     pollMs: intEnv('POLL_INTERVAL_MS', 3000),
     summaryMs: intEnv('SUMMARY_INTERVAL_MS', 48000),
     summaryQuietMs: intEnv('SUMMARY_QUIET_MS', 20000),
+    opinionMs: intEnv('OPINION_INTERVAL_MS', 150000),
+    opinionQuietMs: intEnv('OPINION_QUIET_MS', 25000),
     sessionId: (process.env.SESSION_ID ?? 'polytrade-live').trim(),
     messagePrefix: process.env.MESSAGE_PREFIX?.trim() || undefined,
     presenterName: (process.env.PRESENTER_NAME ?? 'Aria').trim(),

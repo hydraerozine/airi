@@ -90,3 +90,28 @@ export function summaryLine(snapshot: Snapshot): string {
   return `Book check. ${overall.n_open ?? 0} positions live, ${overall.n_closed ?? 0} resolved, `
     + `win rate ${wr} percent, ${sgn(weighted.equal_weighted_bps ?? 0, 1)} basis points average.`
 }
+
+/**
+ * A short factual "market read" for the persona to react to — the closest-to-
+ * firing signal plus the book stats — ending with a nudge so the presenter
+ * voices a brief opinion rather than just restating the numbers.
+ */
+export function marketReadLine(snapshot: Snapshot): string {
+  const signals = snapshot.last_cycle?.signals ?? []
+  const overall = snapshot.paper_book?.overall ?? {}
+  const weighted = snapshot.paper_book?.pnl_weighted ?? {}
+  const wr = Math.round((overall.win_rate ?? 0) * 100)
+
+  let lead = ''
+  if (signals.length) {
+    const top = signals.reduce(
+      (best, g) => (g.fire_net_lcb_bps ?? -1e9) > (best.fire_net_lcb_bps ?? -1e9) ? g : best,
+      signals[0],
+    )
+    const name = SYM_NAME[base(top.pair)] ?? base(top.pair)
+    const hz = HZ_WORD[top.horizon] ?? top.horizon
+    lead = `Closest to firing is ${cap1(name)} on the ${hz}, ${sgn(top.fire_net_lcb_bps ?? 0, 0)} basis points of net edge. `
+  }
+  return `Market read. ${lead}${overall.n_open ?? 0} live, ${overall.n_closed ?? 0} resolved, `
+    + `win rate ${wr} percent, ${sgn(weighted.equal_weighted_bps ?? 0, 1)} basis points average. What's your quick read?`
+}
