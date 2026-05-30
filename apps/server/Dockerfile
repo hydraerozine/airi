@@ -12,8 +12,7 @@ COPY --from=ghcr.io/moeru-ai/airi/ui-server-auth:latest /app/airi/projects/ui/ui
 COPY packages/server-schema packages/server-schema
 COPY packages/server-sdk-shared packages/server-sdk-shared
 
-RUN --mount=type=cache,id=pnpm-store,target=/root/.pnpm-store \
-    pnpm install --frozen-lockfile --ignore-scripts
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # NOTICE:
 # Force a fresh build of server-schema and assert that

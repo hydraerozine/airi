@@ -18,8 +18,7 @@ RUN apt update && apt install -y build-essential python3 python3-setuptools curl
 RUN corepack enable
 
 COPY . .
-RUN --mount=type=cache,id=pnpm-store,target=/root/.pnpm-store \
-    pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile
 
 RUN pnpm -F @proj-airi/stage-web run build && \
     pnpm -F @proj-airi/docs run build:base && \

@@ -15,8 +15,7 @@ RUN corepack enable
 # Copy the whole workspace; node_modules and dist are excluded via .dockerignore.
 COPY . .
 
-RUN --mount=type=cache,id=pnpm-store,target=/root/.pnpm-store \
-    pnpm install --frozen-lockfile --ignore-scripts
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # @proj-airi/server-sdk and its workspace deps publish built ESM (tsdown), and
 # dist is not copied, so build the dependency chain before running via tsx.
