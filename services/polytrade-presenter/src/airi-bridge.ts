@@ -4,7 +4,8 @@ import type { Snapshot } from './snapshot'
 import { useLogg } from '@guiiai/logg'
 import { Client } from '@proj-airi/server-sdk'
 
-import { closeLine, fireLine, greetingLine, marketReadLine, summaryLine } from './narration'
+import { briefingLine, closeLine, fireLine, greetingLine, loreLine, marketReadLine, summaryLine } from './narration'
+import { SessionMemory } from './session'
 import { createChangeDetector, fetchSnapshot } from './snapshot'
 
 /**
@@ -23,6 +24,7 @@ export class AiriPresenterBridge {
   private readonly client: Client
   private readonly config: PresenterConfig
   private readonly detector = createChangeDetector()
+  private readonly session = new SessionMemory()
 
   private running = false
   private lastSpokeAt = 0
@@ -30,6 +32,8 @@ export class AiriPresenterBridge {
   private pollTimer?: ReturnType<typeof setTimeout>
   private summaryTimer?: ReturnType<typeof setInterval>
   private opinionTimer?: ReturnType<typeof setInterval>
+  private briefingTimer?: ReturnType<typeof setInterval>
+  private loreTimer?: ReturnType<typeof setInterval>
 
   constructor(config: PresenterConfig) {
     this.config = config
@@ -83,6 +87,24 @@ export class AiriPresenterBridge {
         return
       this.speak(marketReadLine(this.lastSnapshot))
     }, this.config.opinionMs)
+
+    // Recurring "mission briefing" recap from session memory, for show rhythm.
+    this.briefingTimer = setInterval(() => {
+      if (!this.running)
+        return
+      const line = briefingLine(this.session.stats())
+      if (line)
+        this.speak(line)
+    }, this.config.briefingMs)
+
+    // Fill genuine dead air with in-character lore (only after a real silence).
+    this.loreTimer = setInterval(() => {
+      if (!this.running)
+        return
+      if (Date.now() - this.lastSpokeAt < this.config.loreQuietMs)
+        return
+      this.speak(loreLine())
+    }, this.config.loreMs)
   }
 
   /** Stop timers and close the AIRI connection. */
@@ -94,6 +116,10 @@ export class AiriPresenterBridge {
       clearInterval(this.summaryTimer)
     if (this.opinionTimer)
       clearInterval(this.opinionTimer)
+    if (this.briefingTimer)
+      clearInterval(this.briefingTimer)
+    if (this.loreTimer)
+      clearInterval(this.loreTimer)
     this.client.close()
   }
 
@@ -110,10 +136,16 @@ export class AiriPresenterBridge {
         this.speak(greetingLine(this.config.presenterName))
 
       for (const event of events) {
-        if (event.kind === 'fire')
+        if (event.kind === 'fire') {
+          this.session.recordFire()
           this.speak(fireLine(event.position, event.netBps))
-        else
-          this.speak(closeLine(event.position))
+        }
+        else {
+          // Fold the close into session memory first so the line can cite the
+          // resulting streak / record.
+          const context = this.session.recordClose(event.position)
+          this.speak(closeLine(event.position, context))
+        }
       }
     }
     catch (error) {

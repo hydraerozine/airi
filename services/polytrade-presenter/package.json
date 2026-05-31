@@ -17,13 +17,15 @@
   "scripts": {
     "start": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local src/main.ts",
     "dev": "tsx watch --env-file-if-exists=.env --env-file-if-exists=.env.local src/main.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@guiiai/logg": "catalog:",
     "@proj-airi/server-sdk": "workspace:^"
   },
   "devDependencies": {
-    "tsx": "catalog:"
+    "tsx": "catalog:",
+    "vitest": "catalog:vitest"
   }
 }

@@ -27,6 +27,14 @@ Polytrade (Python)                          AIRI
 - **Detection & phrasing**: faithful port of `live.html` (`fireLine` / `closeLine`
   / `summaryLine`, prime-then-narrate diffing) — see `src/narration.ts` and
   `src/snapshot.ts`.
+- **Session memory** (`src/session.ts`): tracks win/loss streaks, session
+  records, and per-pair form across events so narration can add live colour —
+  "three greens running", "biggest win of the session", a hot pair — instead of
+  looping the same lines. Phrasing is also randomized and scales with the size
+  of each move.
+- **Show rhythm**: recurring "mission briefing" recaps (hourly by default) and
+  in-character "lore" lines during genuine dead air, so a 24/7 stream stays
+  alive between fires.
 - **Transport**: `@proj-airi/server-sdk` `Client`, exactly like the Discord,
   Twitter, and Minecraft services.
 - **No inference here**: the brain and voice live in stage-web; this module is
@@ -67,6 +75,11 @@ All via env (see `.env.example`). Only `POLYTRADE_SNAPSHOT_URL` is required.
 | `POLL_INTERVAL_MS` | `3000` | Snapshot poll cadence |
 | `SUMMARY_INTERVAL_MS` | `48000` | Unprompted "book check" cadence |
 | `SUMMARY_QUIET_MS` | `20000` | Skip summary if a line was sent within this window |
+| `OPINION_INTERVAL_MS` | `150000` | Cadence of the "market read" STAR opines on |
+| `OPINION_QUIET_MS` | `25000` | Skip the market read if a line was sent within this window |
+| `BRIEFING_INTERVAL_MS` | `3600000` | "Mission briefing" recap cadence (from session memory) |
+| `LORE_INTERVAL_MS` | `60000` | How often dead-air is checked for a lore line |
+| `LORE_QUIET_MS` | `120000` | Only drop lore after this much silence |
 | `SESSION_ID` | `polytrade-live` | Conversation/memory lane id |
 | `MESSAGE_PREFIX` | — | Optional source prefix on the brain's input |
 | `PRESENTER_NAME` | `Aria` | Name used in the greeting |

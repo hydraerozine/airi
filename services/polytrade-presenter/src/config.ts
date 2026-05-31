@@ -52,6 +52,24 @@ export interface PresenterConfig {
    */
   opinionQuietMs: number
   /**
+   * How often STAR delivers a richer "mission briefing" recap built from session
+   * memory (totals, records, hot pair, streak), giving the 24/7 stream a beat.
+   * @default 3600000
+   */
+  briefingMs: number
+  /**
+   * How often the bridge checks whether the desk has gone quiet enough to drop
+   * an in-character "lore" line so dead air becomes personality.
+   * @default 60000
+   */
+  loreMs: number
+  /**
+   * Only emit a lore line once the bridge has been silent at least this long,
+   * so flavor fills genuine gaps instead of crowding live commentary.
+   * @default 120000
+   */
+  loreQuietMs: number
+  /**
    * Stable session id so AIRI keeps one coherent conversation/memory lane for the
    * feed instead of treating every event as a new chat.
    * @default 'polytrade-live'
@@ -120,6 +138,9 @@ export function loadConfig(): PresenterConfig {
     summaryQuietMs: intEnv('SUMMARY_QUIET_MS', 20000),
     opinionMs: intEnv('OPINION_INTERVAL_MS', 150000),
     opinionQuietMs: intEnv('OPINION_QUIET_MS', 25000),
+    briefingMs: intEnv('BRIEFING_INTERVAL_MS', 3600000),
+    loreMs: intEnv('LORE_INTERVAL_MS', 60000),
+    loreQuietMs: intEnv('LORE_QUIET_MS', 120000),
     sessionId: (process.env.SESSION_ID ?? 'polytrade-live').trim(),
     messagePrefix: process.env.MESSAGE_PREFIX?.trim() || undefined,
     presenterName: (process.env.PRESENTER_NAME ?? 'Aria').trim(),
