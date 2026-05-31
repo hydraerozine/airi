@@ -70,6 +70,27 @@ function pick<T>(options: readonly T[]): T {
 }
 
 /**
+ * Estimate how long a line takes to speak, in milliseconds.
+ *
+ * The bridge paces its outgoing lines by this so one finishes before the next
+ * is sent (AIRI interrupts current speech when a new `input:text` arrives, and
+ * the server exposes no "done speaking" signal to await). The estimate is
+ * deliberately generous — the persona may rephrase slightly longer, and a brief
+ * gap between lines is far better than cutting STAR off mid-sentence.
+ *
+ * @param text The line to be spoken.
+ * @param wordsPerMinute Assumed delivery rate. @default 150
+ *
+ * @example estimateSpeechMs('Bitcoin just fired long.', 150) // ~2000 (floor)
+ */
+export function estimateSpeechMs(text: string, wordsPerMinute = 150): number {
+  const words = text.trim().split(/\s+/).filter(Boolean).length
+  const rate = wordsPerMinute > 0 ? wordsPerMinute : 150
+  // Floor so very short lines still get room for TTS startup + playback.
+  return Math.max(2000, Math.round((words / rate) * 60000))
+}
+
+/**
  * Magnitude bucket for a basis-point move, so phrasing can scale its energy —
  * a +3 bps scratch should not sound like a +60 bps screamer.
  */
@@ -164,6 +185,79 @@ export function closeLine(position: Position, context: CloseContext): string {
     tags.push(pick([`${Math.abs(context.streak)} reds in a row — staying disciplined.`, `That's ${Math.abs(context.streak)} straight down, riding it out.`]))
 
   return tags.length ? `${core} ${tags.join(' ')}` : core
+}
+
+/**
+ * One coalesced line for a batch of fires that landed in the same poll, so a
+ * burst (e.g. canary mode opening many positions at once) becomes a single
+ * punchy call-out instead of a pile-up that talks over itself.
+ *
+ * @param positions The newly-fired positions from one tick (length >= 2).
+ *
+ * @example multiFireLine([sol1h, ton1h, hype4h]) // "Three launches at once — Solana, Toncoin, and Hyperliquid all firing."
+ */
+export function multiFireLine(positions: Position[]): string {
+  const names = uniqueNames(positions)
+  const count = numberWord(positions.length)
+  const lead = pick([
+    `${cap1(count)} launches at once`,
+    `A cluster of fires`,
+    `The board lights up — ${count} launches`,
+  ])
+  return `${lead} — ${joinNames(names)} all firing.`
+}
+
+/**
+ * One coalesced line for a batch of closes that resolved in the same poll.
+ *
+ * @param positions The freshly-resolved positions from one tick (length >= 2).
+ *
+ * @example multiCloseLine([w, w, l]) // "Three closes land — two green, one red."
+ */
+export function multiCloseLine(positions: Position[]): string {
+  const wins = positions.filter(p => p.won === true).length
+  const losses = positions.length - wins
+  const lead = pick([
+    `${cap1(numberWord(positions.length))} closes land`,
+    `A batch resolves`,
+    `Several dispatches back to Earth`,
+  ])
+
+  const parts: string[] = []
+  if (wins)
+    parts.push(`${numberWord(wins)} green`)
+  if (losses)
+    parts.push(`${numberWord(losses)} red`)
+  return `${lead} — ${parts.join(', ')}.`
+}
+
+/** De-duplicated readable pair names, preserving first-seen order. */
+function uniqueNames(positions: Position[]): string[] {
+  const seen = new Set<string>()
+  const names: string[] = []
+  for (const p of positions) {
+    const n = pairName(p.pair)
+    if (!seen.has(n)) {
+      seen.add(n)
+      names.push(n)
+    }
+  }
+  return names
+}
+
+/** Join names as a spoken list: `a`, `a and b`, `a, b, and c`. */
+function joinNames(names: string[]): string {
+  if (names.length <= 1)
+    return names[0] ?? ''
+  if (names.length === 2)
+    return `${names[0]} and ${names[1]}`
+  return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`
+}
+
+/** Small integer -> spoken word (falls back to digits past ten). */
+function numberWord(n: number): string {
+  const words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten']
+  return words[n] ?? String(n)
 }
 
 /** Periodic "book check" summarizing open/closed counts, win rate, and average edge. */

@@ -35,6 +35,11 @@ Polytrade (Python)                          AIRI
 - **Show rhythm**: recurring "mission briefing" recaps (hourly by default) and
   in-character "lore" lines during genuine dead air, so a 24/7 stream stays
   alive between fires.
+- **Paced delivery**: AIRI interrupts current speech when a new `input:text`
+  arrives and exposes no "done speaking" signal, so the bridge queues lines and
+  sends them one at a time, spaced by each line's estimated duration. A burst of
+  events in one poll (common in canary mode) collapses into a single coalesced
+  line instead of STAR talking over herself.
 - **Transport**: `@proj-airi/server-sdk` `Client`, exactly like the Discord,
   Twitter, and Minecraft services.
 - **No inference here**: the brain and voice live in stage-web; this module is
@@ -84,6 +89,9 @@ All via env (see `.env.example`). Only `POLYTRADE_SNAPSHOT_URL` is required.
 | `MESSAGE_PREFIX` | — | Optional source prefix on the brain's input |
 | `PRESENTER_NAME` | `Aria` | Name used in the greeting |
 | `GREET_ON_CONNECT` | `true` | Greet once after the first snapshot primes |
+| `SPEECH_GAP_MS` | `800` | Extra gap after each line's estimated spoken duration before the next is sent |
+| `MAX_NARRATED_PER_TICK` | `2` | Per poll, narrate at most this many fires (and closes) individually; a bigger burst collapses to one summary line |
+| `MAX_QUEUED_LINES` | `6` | Hard cap on the paced speech backlog; oldest pending lines drop past this |
 
 ## Run it
 

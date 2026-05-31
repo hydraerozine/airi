@@ -4,7 +4,7 @@ import type { Snapshot } from './snapshot'
 import { useLogg } from '@guiiai/logg'
 import { Client } from '@proj-airi/server-sdk'
 
-import { briefingLine, closeLine, fireLine, greetingLine, loreLine, marketReadLine, summaryLine } from './narration'
+import { briefingLine, closeLine, estimateSpeechMs, fireLine, greetingLine, loreLine, marketReadLine, multiCloseLine, multiFireLine, summaryLine } from './narration'
 import { SessionMemory } from './session'
 import { createChangeDetector, fetchSnapshot } from './snapshot'
 
@@ -34,6 +34,15 @@ export class AiriPresenterBridge {
   private opinionTimer?: ReturnType<typeof setInterval>
   private briefingTimer?: ReturnType<typeof setInterval>
   private loreTimer?: ReturnType<typeof setInterval>
+
+  // Outgoing speech is paced through this FIFO: AIRI interrupts current speech
+  // whenever a new `input:text` arrives and exposes no "done speaking" signal,
+  // so the bridge sends one line, waits an estimate of how long it takes to
+  // say, then sends the next. Without this, a multi-event poll (common in
+  // canary mode) makes STAR talk over herself and only the last line survives.
+  private readonly speechQueue: string[] = []
+  private drainTimer?: ReturnType<typeof setTimeout>
+  private draining = false
 
   constructor(config: PresenterConfig) {
     this.config = config
@@ -120,6 +129,9 @@ export class AiriPresenterBridge {
       clearInterval(this.briefingTimer)
     if (this.loreTimer)
       clearInterval(this.loreTimer)
+    if (this.drainTimer)
+      clearTimeout(this.drainTimer)
+    this.speechQueue.length = 0
     this.client.close()
   }
 
@@ -135,18 +147,30 @@ export class AiriPresenterBridge {
       if (!wasPrimed && this.detector.primed && this.config.greetOnConnect)
         this.speak(greetingLine(this.config.presenterName))
 
-      for (const event of events) {
-        if (event.kind === 'fire') {
-          this.session.recordFire()
-          this.speak(fireLine(event.position, event.netBps))
-        }
-        else {
-          // Fold the close into session memory first so the line can cite the
-          // resulting streak / record.
-          const context = this.session.recordClose(event.position)
-          this.speak(closeLine(event.position, context))
-        }
+      const fires = events.filter(e => e.kind === 'fire')
+      const closes = events.filter(e => e.kind === 'close')
+
+      // Always fold every event into session memory so streaks/records stay
+      // accurate even when the spoken lines are coalesced.
+      for (let i = 0; i < fires.length; i++)
+        this.session.recordFire()
+      const closeContexts = closes.map(e => this.session.recordClose(e.position))
+
+      // One line per individual event reads best; but a burst (common in canary
+      // mode) would talk over itself, so past a small threshold we collapse each
+      // kind into a single summary line instead of queueing a long backlog.
+      if (fires.length > this.config.maxNarratedPerTick) {
+        this.speak(multiFireLine(fires.map(e => e.position)))
       }
+      else {
+        for (const e of fires)
+          this.speak(fireLine(e.position, e.netBps))
+      }
+
+      if (closes.length > this.config.maxNarratedPerTick)
+        this.speak(multiCloseLine(closes.map(e => e.position)))
+      else
+        closes.forEach((e, i) => this.speak(closeLine(e.position, closeContexts[i])))
     }
     catch (error) {
       this.log.errorWithError('snapshot poll failed', error)
@@ -162,10 +186,48 @@ export class AiriPresenterBridge {
     }, this.config.pollMs)
   }
 
-  /** Send a line to AIRI as `input:text`; the brain decides delivery and voices it. */
+  /**
+   * Queue a line for delivery. Lines are drained one at a time, paced so each
+   * finishes speaking before the next is sent (see {@link drainSpeech}); a
+   * direct send would interrupt whatever STAR is currently saying.
+   *
+   * Stale-burst guard: if the backlog already exceeds maxQueuedLines (a canary
+   * stampede faster than she can talk), the oldest pending lines are dropped so
+   * narration stays close to live instead of falling minutes behind.
+   */
   private speak(text: string): void {
     if (!text)
       return
+    this.speechQueue.push(text)
+    while (this.speechQueue.length > this.config.maxQueuedLines)
+      this.speechQueue.shift()
+    if (!this.draining)
+      this.drainSpeech()
+  }
+
+  /**
+   * Drain the speech queue one line at a time, scheduling the next send only
+   * after the current line's estimated spoken duration has elapsed. Idempotent
+   * via the `draining` guard so overlapping callers cannot double-pump it.
+   */
+  private drainSpeech(): void {
+    if (!this.running) {
+      this.draining = false
+      return
+    }
+    const text = this.speechQueue.shift()
+    if (text == null) {
+      this.draining = false
+      return
+    }
+    this.draining = true
+    this.send(text)
+    const waitMs = estimateSpeechMs(text) + this.config.speechGapMs
+    this.drainTimer = setTimeout(() => this.drainSpeech(), waitMs)
+  }
+
+  /** Send one line to AIRI as `input:text`; the brain decides delivery and voices it. */
+  private send(text: string): void {
     const overrides: { sessionId: string, messagePrefix?: string } = { sessionId: this.config.sessionId }
     if (this.config.messagePrefix)
       overrides.messagePrefix = this.config.messagePrefix

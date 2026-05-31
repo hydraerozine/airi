@@ -91,6 +91,28 @@ export interface PresenterConfig {
    * @default true
    */
   greetOnConnect: boolean
+  /**
+   * Spoken lines are paced one at a time (AIRI interrupts current speech on a
+   * new input). This is the extra gap added after each line's estimated spoken
+   * duration before the next is sent, in milliseconds — a small breath that
+   * also absorbs estimation error.
+   * @default 800
+   */
+  speechGapMs: number
+  /**
+   * Per-poll, narrate at most this many fires (and separately, closes)
+   * individually; a larger burst collapses into one coalesced summary line so
+   * STAR does not talk over herself. Matters most in canary mode.
+   * @default 2
+   */
+  maxNarratedPerTick: number
+  /**
+   * Hard cap on the paced speech backlog. If events arrive faster than they can
+   * be spoken, the oldest queued lines are dropped past this so narration stays
+   * close to live instead of falling minutes behind.
+   * @default 6
+   */
+  maxQueuedLines: number
 }
 
 /** Parse an integer env var, falling back when unset/blank/non-numeric. */
@@ -145,5 +167,8 @@ export function loadConfig(): PresenterConfig {
     messagePrefix: process.env.MESSAGE_PREFIX?.trim() || undefined,
     presenterName: (process.env.PRESENTER_NAME ?? 'Aria').trim(),
     greetOnConnect: boolEnv('GREET_ON_CONNECT', true),
+    speechGapMs: intEnv('SPEECH_GAP_MS', 800),
+    maxNarratedPerTick: intEnv('MAX_NARRATED_PER_TICK', 2),
+    maxQueuedLines: intEnv('MAX_QUEUED_LINES', 6),
   }
 }
