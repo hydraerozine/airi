@@ -75,6 +75,14 @@ const SETTINGS: Record<string, string> = {
   'settings/speech/active-model': 'fp32-webgpu',
   'settings/speech/voice': 'af_bella',
   'settings/stage/model': 'preset-live2d-1',
+  // Headless-render performance caps. The cloud streamer software-renders the
+  // Live2D avatar (no GPU), which is CPU-bound. The avatar's own loop runs at
+  // ~60fps and the canvas defaults to render-scale 2 (4x the pixels), all of
+  // which SwiftShader must fill every frame -- and the extra detail is thrown
+  // away by the 720p capture anyway. Cap to 30fps and 1x scale to roughly
+  // quarter the avatar's render cost with no visible loss on-stream.
+  'settings/live2d/max-fps': '30',
+  'settings/live2d/render-scale': '1',
   'settings/connection/websocket-url': 'wss://airi-runtime-production.up.railway.app/ws',
   'settings/theme/colors/hue': '220.44',
 }
