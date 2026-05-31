@@ -49,7 +49,29 @@ export function useThemeColor(colorFrom: () => string | Promise<string>) {
     if (!('window' in globalThis) || globalThis.window == null)
       return
 
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', new Color(await colorFrom()).to('srgb').toString({ format: 'hex' }))
+    // NOTICE:
+    // colorFrom() can resolve to an empty string -- getComputedStyle() returns
+    // '' for the sampled element before paint, and html2canvas color sampling
+    // yields nothing in a headless / GPU-less browser (e.g. a cloud streamer
+    // rendering the stage on Xvfb). `new Color('')` (colorjs.io) then throws
+    // "Empty color reference", which bubbles up as an unhandled render error
+    // and crashes the whole stage. Guard the empty / unparseable case and skip
+    // the (purely cosmetic) <meta name="theme-color"> update.
+    // Repro: open the stage in headless Chromium on Xvfb -> TypeError: Empty
+    // color reference, thrown from the colorjs.io Color constructor.
+    const raw = (await colorFrom())?.trim()
+    if (!raw)
+      return
+
+    let hex: string
+    try {
+      hex = new Color(raw).to('srgb').toString({ format: 'hex' })
+    }
+    catch {
+      return
+    }
+
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', hex)
   }
 
   return {
