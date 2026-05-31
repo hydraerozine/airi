@@ -18,6 +18,10 @@ import App from './App.vue'
 
 import { i18n } from './modules/i18n'
 
+// MUST be first: seeds the STAR presenter config into localStorage on a fresh
+// browser before any Pinia store reads it (so a headless/cloud instance loads
+// pre-configured instead of the onboarding wizard).
+import './seed/star-presenter'
 import '@proj-airi/font-cjkfonts-allseto/index.css'
 import '@proj-airi/font-xiaolai/index.css'
 import '@unocss/reset/tailwind.css'
