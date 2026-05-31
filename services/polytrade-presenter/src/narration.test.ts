@@ -2,7 +2,7 @@ import type { Position } from './snapshot'
 
 import { describe, expect, it } from 'vitest'
 
-import { estimateSpeechMs, multiCloseLine, multiFireLine } from './narration'
+import { estimateSpeechMs, marketReadLine, multiCloseLine, multiFireLine } from './narration'
 
 /** Build an open position for fire tests. */
 function fire(pair: string): Position {
@@ -63,5 +63,30 @@ describe('multiCloseLine', () => {
     const line = multiCloseLine([closed('BTC/USDC', true), closed('ETH/USDC', true)])
     expect(line).toContain('two green')
     expect(line).not.toContain('red')
+  })
+})
+
+describe('marketReadLine', () => {
+  it('reads a long-tilted board as long and cites the primed pair', () => {
+    const snapshot = {
+      last_cycle: {
+        signals: [
+          // SOL long-biased and primed (positive edge), others held under the bar
+          { pair: 'SOL/USDC', horizon: '1h', side: 'LONG', fire_net_lcb_bps: 4, long_p: 0.7, short_p: 0.3, hold_reason: '-' },
+          { pair: 'BTC/USDC', horizon: '5m', side: 'HOLD', fire_net_lcb_bps: -9, long_p: 0.62, short_p: 0.38, hold_reason: 'cresc_p_lcb_below_threshold' },
+          { pair: 'ETH/USDC', horizon: '1h', side: 'HOLD', fire_net_lcb_bps: -13, long_p: 0.6, short_p: 0.4, hold_reason: 'cresc_p_lcb_below_threshold' },
+        ],
+      },
+    }
+    const line = marketReadLine(snapshot)
+    expect(line).toContain('long')
+    expect(line).toContain('Solana')
+    // the dominant gate gets voiced as plain language, never the raw code
+    expect(line).toContain('conviction just under the bar')
+    expect(line).not.toContain('cresc_')
+  })
+
+  it('handles an empty board without inventing a read', () => {
+    expect(marketReadLine({ last_cycle: { signals: [] } })).toContain('board')
   })
 })

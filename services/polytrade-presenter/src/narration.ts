@@ -1,5 +1,5 @@
 import type { CloseContext, SessionStats } from './session'
-import type { Position, Snapshot } from './snapshot'
+import type { Position, Signal, Snapshot } from './snapshot'
 
 /**
  * Spoken phrasing for the Polytrade presenter.
@@ -277,22 +277,88 @@ export function summaryLine(snapshot: Snapshot): string {
  */
 export function marketReadLine(snapshot: Snapshot): string {
   const signals = snapshot.last_cycle?.signals ?? []
-  const overall = snapshot.paper_book?.overall ?? {}
-  const weighted = snapshot.paper_book?.pnl_weighted ?? {}
-  const wr = Math.round((overall.win_rate ?? 0) * 100)
+  if (!signals.length)
+    return `Market read. The board's dark for a moment — feeds settling. Standing by for the next signal.`
 
-  let lead = ''
-  if (signals.length) {
-    const top = signals.reduce(
-      (best, g) => (g.fire_net_lcb_bps ?? -1e9) > (best.fire_net_lcb_bps ?? -1e9) ? g : best,
-      signals[0],
-    )
-    const name = pairName(top.pair)
-    const hz = HZ_WORD[top.horizon] ?? top.horizon
-    lead = `Closest to firing is ${name} on the ${hz}, ${sgn(top.fire_net_lcb_bps ?? 0, 0)} basis points of net edge. `
+  // Directional lean across the board, the closest-to-firing signal, and what's
+  // gating the rest — the three things that make a read feel alive.
+  const bias = directionalBias(signals)
+  const top = signals.reduce(
+    (best, g) => (g.fire_net_lcb_bps ?? -1e9) > (best.fire_net_lcb_bps ?? -1e9) ? g : best,
+    signals[0],
+  )
+  const topName = pairName(top.pair)
+  const topHz = HZ_WORD[top.horizon] ?? top.horizon
+  const topNet = top.fire_net_lcb_bps ?? 0
+
+  const biasPart = pick([
+    `The desk is ${bias} right now.`,
+    `Overall tone reads ${bias}.`,
+    `My read across the board: ${bias}.`,
+  ])
+
+  const leadPart = topNet >= 0
+    ? `${topName} on the ${topHz} is primed, ${sgn(topNet, 0)} basis points of edge — that's the one to watch.`
+    : `Closest to firing is ${topName} on the ${topHz}, still ${sgn(topNet, 0)} basis points shy of clearing cost.`
+
+  const gate = dominantGate(signals)
+  const gatePart = gate
+    ? pick([
+        `Most of the grid is held — ${gate}.`,
+        `The rest is on the bench: ${gate}.`,
+      ])
+    : ''
+
+  return [`Market read.`, biasPart, leadPart, gatePart].filter(Boolean).join(' ')
+}
+
+/** Spoken directional lean of the board from long-vs-short conviction. */
+function directionalBias(signals: Signal[]): string {
+  let longW = 0
+  let shortW = 0
+  for (const g of signals) {
+    longW += Math.max(0, (g.long_p ?? 0) - 0.5)
+    shortW += Math.max(0, (g.short_p ?? 0) - 0.5)
   }
-  return `Market read. ${lead}${overall.n_open ?? 0} live, ${overall.n_closed ?? 0} resolved, `
-    + `win rate ${wr} percent, ${sgn(weighted.equal_weighted_bps ?? 0, 1)} basis points average. What's your quick read?`
+  const total = longW + shortW
+  const share = total > 0 ? longW / total : 0.5
+  if (share > 0.62)
+    return 'leaning firmly long'
+  if (share > 0.54)
+    return 'tilting long'
+  if (share < 0.38)
+    return 'leaning firmly short'
+  if (share < 0.46)
+    return 'tilting short'
+  return 'balanced, no strong edge either way'
+}
+
+/** hold_reason code -> spoken phrase for STAR's market read. */
+const GATE_PHRASES: Record<string, string> = {
+  cresc_p_lcb_below_threshold: 'conviction just under the bar',
+  cresc_net_edge_below_threshold: 'the edge not yet covering cost',
+  cresc_vol_unstable: 'volatility too unstable to trust',
+  cresc_regime_cold: 'a few regimes still warming up',
+  cresc_recent_chop: 'the tape too choppy',
+}
+
+/** Spoken description of the gate holding back the most signals, or '' if none. */
+function dominantGate(signals: Signal[]): string {
+  const counts = new Map<string, number>()
+  for (const g of signals) {
+    const r = g.hold_reason
+    if (r && r !== '-')
+      counts.set(r, (counts.get(r) ?? 0) + 1)
+  }
+  let top = ''
+  let n = 0
+  for (const [reason, c] of counts) {
+    if (c > n) {
+      n = c
+      top = reason
+    }
+  }
+  return top ? GATE_PHRASES[top] ?? 'waiting on cleaner conditions' : ''
 }
 
 /**

@@ -34,6 +34,12 @@ export interface Signal {
   side: string
   /** Net lower-confidence-bound expected edge in basis points. */
   fire_net_lcb_bps?: number
+  /** Long-side fair probability (0..1); used for the board's directional bias. */
+  long_p?: number
+  /** Short-side fair probability (0..1); used for the board's directional bias. */
+  short_p?: number
+  /** Why this signal is held this cycle (`'-'`/absent when firing). */
+  hold_reason?: string
 }
 
 /** The paper book section of the snapshot. */
