@@ -25,6 +25,19 @@ const SYM_NAME: Record<string, string> = {
   DOGE: 'dogecoin',
   ADA: 'cardano',
   TON: 'toncoin',
+  XRP: 'ripple',
+  LINK: 'chainlink',
+  AVAX: 'avalanche',
+  LTC: 'litecoin',
+  BCH: 'bitcoin cash',
+  DOT: 'polkadot',
+  UNI: 'uniswap',
+  AAVE: 'aave',
+  NEAR: 'near',
+  APT: 'aptos',
+  SUI: 'sui',
+  ARB: 'arbitrum',
+  OP: 'optimism',
 }
 
 /** Horizon code -> spoken words, e.g. `20m` -> `twenty minute`. */
@@ -105,9 +118,9 @@ function magnitude(absBps: number): 'small' | 'medium' | 'big' {
 /** Opening line spoken once the bridge connects and primes. */
 export function greetingLine(presenterName: string): string {
   return pick([
-    `${presenterName} online. Polytrade live — eight pairs, seven horizons, fully calibrated. Standing by for the next signal.`,
-    `${presenterName} on the air. Systems green across eight pairs and seven horizons. Let's watch the tape.`,
-    `This is ${presenterName}, live from the Polytrade desk. All feeds nominal, eight pairs under watch. Here we go.`,
+    `${presenterName} online. Polytrade live — the full board calibrated across seven horizons. Standing by for the next signal.`,
+    `${presenterName} on the air. Systems green across every pair on the desk. Let's watch the tape.`,
+    `This is ${presenterName}, live from the Polytrade desk. All feeds nominal, the whole board under watch. Here we go.`,
   ])
 }
 
