@@ -38,6 +38,11 @@ const SYM_NAME: Record<string, string> = {
   SUI: 'sui',
   ARB: 'arbitrum',
   OP: 'optimism',
+  TSLA: 'tesla',
+  NVDA: 'nvidia',
+  AAPL: 'apple',
+  MSFT: 'microsoft',
+  META: 'meta',
 }
 
 /** Horizon code -> spoken words, e.g. `20m` -> `twenty minute`. */
